@@ -1,17 +1,93 @@
-import React from 'react'
+import React, { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
+import { SuccessModal } from '@/components/SuccessModal'
 import { Plus } from 'lucide-react'
+import { tableSchema, type TableFormData } from '@/utils/validation'
 
 const Tables: React.FC = () => {
-    const tables = [
+    const [isDialogOpen, setIsDialogOpen] = useState(false)
+    const [isSuccessOpen, setIsSuccessOpen] = useState(false)
+    const [editingTable, setEditingTable] = useState<any>(null)
+
+    const {
+        register,
+        handleSubmit,
+        formState: { errors },
+        reset,
+        setValue,
+    } = useForm<TableFormData>({
+        resolver: zodResolver(tableSchema),
+        defaultValues: {
+            status: 'available',
+            capacity: 4,
+        },
+    })
+
+    const [tables, setTables] = useState([
         { id: '1', number: 'A1', capacity: 4, status: 'available', location: 'ชั้น 1' },
         { id: '2', number: 'A2', capacity: 4, status: 'occupied', location: 'ชั้น 1' },
         { id: '3', number: 'A3', capacity: 2, status: 'available', location: 'ชั้น 1' },
         { id: '4', number: 'B1', capacity: 6, status: 'reserved', location: 'ชั้น 2' },
         { id: '5', number: 'B2', capacity: 8, status: 'available', location: 'ชั้น 2' },
         { id: '6', number: 'B3', capacity: 4, status: 'cleaning', location: 'ชั้น 2' },
-    ]
+    ])
+
+    const onSubmit = (data: TableFormData) => {
+        console.log('Form data:', data)
+
+        if (editingTable) {
+            setTables(tbls =>
+                tbls.map(tbl =>
+                    tbl.id === editingTable.id ? { ...tbl, ...data } : tbl
+                )
+            )
+        } else {
+            const newTable = {
+                id: String(tables.length + 1),
+                ...data,
+            }
+            setTables([...tables, newTable])
+        }
+
+        setIsDialogOpen(false)
+        setIsSuccessOpen(true)
+        reset({ status: 'available', capacity: 4 })
+        setEditingTable(null)
+    }
+
+    const handleEdit = (table: any) => {
+        setEditingTable(table)
+        setValue('number', table.number)
+        setValue('capacity', table.capacity)
+        setValue('status', table.status)
+        setValue('location', table.location || '')
+        setIsDialogOpen(true)
+    }
+
+    const handleAddNew = () => {
+        setEditingTable(null)
+        reset({ status: 'available', capacity: 4 })
+        setIsDialogOpen(true)
+    }
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -50,7 +126,7 @@ const Tables: React.FC = () => {
                     <h1 className="text-3xl font-bold text-gray-900">โต๊ะ</h1>
                     <p className="text-gray-500 mt-1">จัดการโต๊ะทั้งหมด</p>
                 </div>
-                <Button className="gap-2">
+                <Button className="gap-2" onClick={handleAddNew}>
                     <Plus className="w-4 h-4" />
                     เพิ่มโต๊ะ
                 </Button>
@@ -63,6 +139,7 @@ const Tables: React.FC = () => {
                         className={`cursor-pointer hover:shadow-lg transition-all duration-200 border-2 ${getStatusColor(
                             table.status
                         )}`}
+                        onClick={() => handleEdit(table)}
                     >
                         <CardContent className="p-6">
                             <div className="text-center">
@@ -96,6 +173,93 @@ const Tables: React.FC = () => {
                     </Card>
                 ))}
             </div>
+
+            {/* Form Dialog */}
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{editingTable ? 'แก้ไขโต๊ะ' : 'เพิ่มโต๊ะ'}</DialogTitle>
+                        <DialogDescription>
+                            กรอกข้อมูลโต๊ะให้ครบถ้วน
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="number">หมายเลขโต๊ะ *</Label>
+                                <Input id="number" {...register('number')} placeholder="A1" />
+                                {errors.number && (
+                                    <p className="text-sm text-red-600">{errors.number.message}</p>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="capacity">จำนวนที่นั่ง *</Label>
+                                <Input
+                                    id="capacity"
+                                    type="number"
+                                    {...register('capacity')}
+                                    placeholder="4"
+                                />
+                                {errors.capacity && (
+                                    <p className="text-sm text-red-600">{errors.capacity.message}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="status">สถานะ *</Label>
+                            <Select onValueChange={(value: any) => setValue('status', value)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="เลือกสถานะ" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="available">ว่าง</SelectItem>
+                                    <SelectItem value="occupied">ไม่ว่าง</SelectItem>
+                                    <SelectItem value="reserved">จอง</SelectItem>
+                                    <SelectItem value="cleaning">กำลังทำความสะอาด</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            {errors.status && (
+                                <p className="text-sm text-red-600">{errors.status.message}</p>
+                            )}
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="location">ตำแหน่ง</Label>
+                            <Input id="location" {...register('location')} placeholder="ชั้น 1" />
+                            {errors.location && (
+                                <p className="text-sm text-red-600">{errors.location.message}</p>
+                            )}
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-4">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    setIsDialogOpen(false)
+                                    reset({ status: 'available', capacity: 4 })
+                                    setEditingTable(null)
+                                }}
+                            >
+                                ยกเลิก
+                            </Button>
+                            <Button type="submit">
+                                {editingTable ? 'บันทึกการแก้ไข' : 'เพิ่มโต๊ะ'}
+                            </Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Success Modal */}
+            <SuccessModal
+                open={isSuccessOpen}
+                onClose={() => setIsSuccessOpen(false)}
+                title="สำเร็จ!"
+                description={`${editingTable ? 'แก้ไข' : 'เพิ่ม'}โต๊ะเรียบร้อยแล้ว`}
+            />
         </div>
     )
 }
