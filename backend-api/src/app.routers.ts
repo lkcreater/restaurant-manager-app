@@ -2,8 +2,8 @@ import { RouterModule } from "@nestjs/core";
 import { HealthModule } from "./modules/health/health.module";
 import { UploadsModule } from "./modules/uploads/uploads.module";
 
-const APP_PREFIX = process.env.APP_PREFIX ?? 'api';
-const APP_VERSION = process.env.APP_VERSION ?? 'v1';
+const APP_PREFIX = process.env.API_PREFIX ?? 'api';
+const APP_VERSION = process.env.API_VERSION ?? 'v1';
 
 export class RoutersAppModule {
 
